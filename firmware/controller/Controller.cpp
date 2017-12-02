@@ -1263,6 +1263,14 @@ void Controller::do_logging() {
 		//m_magsensor_stored = gpio_read_bit(PIN_MAP[29].gpio_device,PIN_MAP[29].gpio_bit);
 		// set new alarm for log_interval_seconds from now.
 		rtc_clear_alarmed();
+		// We can have one last alarm after m_log_interval_seconds is set to zero,
+		// so make sure we don't re-enable the alarms then.
+		if (m_log_interval_seconds > 0) {
+			// We need the -1 because the alarm triggers at the end of the second,
+			// not at the start
+			rtc_set_alarm(RTC, m_last_alarm_time + m_log_interval_seconds -1);
+			rtc_enable_alarm(RTC);
+		}
 	}
 
 	if (m_alarm_log == true) {
@@ -1306,14 +1314,6 @@ void Controller::do_logging() {
 			// We can now stop logging until the next period
 			m_alarm_log = false;
 
-			// We can have one last alarm after m_log_interval_seconds is set to zero,
-			// so make sure we don't re-enable the alarms then.
-			if (m_log_interval_seconds > 0) {
-				// We need the -1 because the alarm triggers at the end of the second,
-				// not at the start
-				rtc_set_alarm(RTC, m_last_alarm_time + m_log_interval_seconds -1);
-				rtc_enable_alarm(RTC);
-			}
 			if (m_sleeping) {
 				buzzer_morse_debug("S");  // for 'S'tandby  ...
 				// If we are charging, do not go into standby, because
