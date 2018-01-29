@@ -69,10 +69,15 @@ Controller::Controller() {
 	next_mode_label = 0;
 
 	// Get warning cpm from flash
-	m_warncpm = 0;
+	// We will always warn above the MAX CPM for the user's safety.
+	m_warncpm = MAX_CPM;
 	const char *swarncpm = flashstorage_keyval_get("WARNCPM");
 	if (swarncpm != 0) {
 		sscanf(swarncpm, "%"SCNd32"", &m_warncpm);
+		// Forbid the user from setting an alarm above the MAX CPM
+		// the counter can do.
+		if (m_warncpm > MAX_CPM)
+			m_warncpm = MAX_CPM;
 	}
 
 	// Get enabled operating modes
@@ -504,7 +509,7 @@ void Controller::event_mute_alarm() {
 		tick_item("Mute alarm", false);
 		m_mute_alarm = false;
 	}
-	// Clear the alarm to force a re-trigger on the GUI with or witout
+	// Clear the alarm to force a re-trigger on the GUI with or without
 	// sound depending on mute_alarm value
 	reset_alarm(-1);
 
@@ -515,8 +520,12 @@ void Controller::event_mute_alarm() {
  * if warn_cpm = -1)
  */
 void Controller::reset_alarm(int32_t warn_cpm) {
-	if (warn_cpm > -1)
-		m_warncpm = warn_cpm;
+	if (warn_cpm > -1) {
+		if (warn_cpm > 0)
+			m_warncpm = warn_cpm;
+		else
+			m_warncpm = MAX_CPM;
+	}
 	m_warning_raised = false;
 	m_gui->set_cpm_alarm(false, m_mute_alarm, 0);
 }
@@ -1501,7 +1510,7 @@ void Controller::send_cpm_values() {
 	}
 
 	if (cpm > MAX_CPM) {
-		sprintf(text_cpmd, "TOO HIGH");
+		sprintf(text_cpmd, " *");
 		sprintf(text_cpmdint, "TOO HIGH"); // kanji image is 45
 	}
 
@@ -1552,7 +1561,7 @@ void Controller::send_svrem() {
 		sprintf(text_rem, "%5.5s", tmp);
 		if ((system_geiger->get_cpm_deadtime_compensated() > MAX_CPM)
 				|| (system_geiger->get_microrems() > 99999999)) {
-			sprintf(text_rem, "TOO HIGH");
+			sprintf(text_rem, " *"); // Displays a warning icon
 		}
 
 		m_gui->receive_update("$SVREM", text_rem);
@@ -1565,7 +1574,7 @@ void Controller::send_svrem() {
 		sprintf(text_sieverts, "%5.5s", tmp);
 		if ((system_geiger->get_cpm_deadtime_compensated() > MAX_CPM)
 				|| (system_geiger->get_microsieverts() > 99999999)) {
-			sprintf(text_sieverts, "TOO HIGH");
+			sprintf(text_sieverts, " *"); // Displays a warning icon
 		}
 
 		m_gui->receive_update("$SVREM", text_sieverts);
@@ -1579,7 +1588,7 @@ void Controller::send_becq() {
 	float becq = system_geiger->get_becquerel();
 	if (becq >= 0) {
 		if (becq > 9999) {
-			sprintf(text_becq, "TOO HIGH");
+			sprintf(text_becq, " *"); // Displays a warning icon
 		} else {
 			sprintf(text_becq_tmp, "%5.3f", becq);
 			// Truncate to 5 character string (includes '.')

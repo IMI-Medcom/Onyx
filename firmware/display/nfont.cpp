@@ -201,9 +201,38 @@ void draw_character(uint32_t x, uint32_t y, char c, uint16_t foreground, uint16_
 void draw_bigcharacter(int x, int y, char c, uint16_t foreground, uint16_t background) {
 
 	uint16_t character_data[43 * 30];
+
+	// Special case: draw a large warning triangle
+	// Location is 74 to 122 px on the x axis
+	if (c == '*') {
+		c = 10;
+		for (size_t c_y = 0; c_y < 43; c_y++) {
+			// We cheat and start at index 9, so that the
+			// dot does not appear
+			for (size_t c_x = 0; c_x < 30; c_x++) {
+				// get_pixel returns a mask - basically an alpha value
+				uint8_t px = (c_x < 11) ? 255 : get_bigpixel(c, c_x, c_y);
+				character_data[(c_y * 30) + c_x] = compute_color(px, foreground, background);
+			}
+		}
+		oled_draw_rect(x, y, 30, 43, (uint8_t *) character_data);
+		c = 11;
+		x += 30;
+		for (size_t c_y = 0; c_y < 43; c_y++) {
+			for (size_t c_x = 0; c_x < 30; c_x++) {
+				// get_pixel returns a mask - basically an alpha value
+				uint8_t px = get_bigpixel(c, c_x, c_y);
+				character_data[(c_y * 30) + c_x] = compute_color(px, foreground, background);
+			}
+		}
+		oled_draw_rect(x, y, 30, 43, (uint8_t *) character_data);
+		return;
+	}
+
+
 	// Our big font only contains digits, so fallback to standard font in case
 	// we're asked to draw something else:
-	if (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z'))) {
+	if ((c > '9' || c < '0') && c != ' ') {
 		oled_draw_rect(x, y, 30, 43, (uint8_t *) character_data);
 		draw_character(x, y, c, foreground, background);
 		return;
